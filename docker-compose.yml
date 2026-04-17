@@ -1,0 +1,29 @@
+services:
+  fohi-maxes-api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: fohi-maxes-api
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/data
+    networks:
+      - maxes-internal
+
+  fohi-maxes:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fohi-maxes
+    restart: unless-stopped
+    ports:
+      - "3042:80"
+    depends_on:
+      - fohi-maxes-api
+    networks:
+      - maxes-internal
+
+networks:
+  maxes-internal:
+    driver: bridge
