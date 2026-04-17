@@ -75,6 +75,16 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ssoToken = params.get('sso_token');
+    if (ssoToken) {
+      window.history.replaceState({}, '', window.location.pathname);
+      api.sso(ssoToken)
+        .then(d => { setToken(d.token); setUser(d.user); })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+      return;
+    }
     const token = getToken();
     if (token) {
       const parsed = parseJwt(token);
