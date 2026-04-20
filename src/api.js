@@ -27,6 +27,7 @@ export const api = {
   updatePod: (id, name) => req('PUT', `/pods/${id}`, { name }),
   deletePod: (id) => req('DELETE', `/pods/${id}`),
 
+  getDuplicates: () => req('GET', '/players/duplicates'),
   getPlayers: (params = {}) => {
     const qs = new URLSearchParams(params).toString();
     return req('GET', `/players${qs ? '?' + qs : ''}`);

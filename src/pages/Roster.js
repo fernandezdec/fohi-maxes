@@ -5,6 +5,7 @@ import { api } from '../api';
 export default function Roster() {
   const [players, setPlayers] = useState([]);
   const [pods, setPods] = useState([]);
+  const [duplicates, setDuplicates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editPlayer, setEditPlayer] = useState(null);
@@ -15,9 +16,15 @@ export default function Roster() {
   useEffect(() => { load(); }, []);
 
   async function load() {
-    const [pl, po] = await Promise.all([api.getPlayers(), api.getPods()]);
-    setPlayers(pl || []); setPods(po || []);
+    const [pl, po, dups] = await Promise.all([api.getPlayers(), api.getPods(), api.getDuplicates()]);
+    setPlayers(pl || []); setPods(po || []); setDuplicates(dups || []);
     setLoading(false);
+  }
+
+  async function deleteDuplicate(id) {
+    if (!window.confirm('Delete this duplicate player record? Lift history for this record will also be deleted.')) return;
+    await api.updatePlayer(id, { is_active: 0 });
+    load();
   }
 
   function openNew() {
@@ -57,6 +64,50 @@ export default function Roster() {
         <div className="page-title">Roster <span style={{ fontSize: '1rem', color: 'var(--mu)', fontWeight: 400 }}>({players.length} players)</span></div>
         <button className="btn btn-primary" onClick={openNew}>+ Add Player</button>
       </div>
+
+      {duplicates.length > 0 && (
+        <div style={{ background: '#fff3cd', border: '1px solid #ffc107', borderRadius: 6, padding: '12px 16px', marginBottom: 16 }}>
+          <div style={{ fontFamily: 'Barlow Condensed', fontWeight: 800, fontSize: '0.85rem', letterSpacing: '.1em', textTransform: 'uppercase', color: '#856404', marginBottom: 8 }}>
+            ⚠ Duplicate Players Detected — Review &amp; Remove
+          </div>
+          {duplicates.map((group, gi) => (
+            <div key={gi} style={{ marginBottom: gi < duplicates.length - 1 ? 12 : 0 }}>
+              <div style={{ fontSize: '.78rem', color: '#555', marginBottom: 4, fontWeight: 600 }}>
+                {group[0].last_name}, {group[0].first_name} — {group.length} records found:
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.78rem' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(0,0,0,.04)' }}>
+                    <th style={{ padding: '4px 8px', textAlign: 'left' }}>Name</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'left' }}>Pod</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'left' }}>Student ID</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'left' }}>Username</th>
+                    <th style={{ padding: '4px 8px', textAlign: 'left' }}>Lifts</th>
+                    <th style={{ padding: '4px 8px' }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {group.map((p, pi) => (
+                    <tr key={p.id} style={{ background: pi === 0 ? 'rgba(0,128,0,.05)' : 'rgba(220,53,69,.05)' }}>
+                      <td style={{ padding: '4px 8px', fontWeight: 600 }}>{p.last_name}, {p.first_name}</td>
+                      <td style={{ padding: '4px 8px' }}>{p.pod_name || '—'}</td>
+                      <td style={{ padding: '4px 8px' }}>{p.student_id || '—'}</td>
+                      <td style={{ padding: '4px 8px' }}>{p.username || '—'}</td>
+                      <td style={{ padding: '4px 8px' }}>{p.lift_count}</td>
+                      <td style={{ padding: '4px 8px' }}>
+                        {pi === 0
+                          ? <span style={{ fontSize: '.7rem', color: '#2a7', fontWeight: 700 }}>KEEP</span>
+                          : <button className="btn btn-sm" style={{ background: '#dc3545', color: '#fff', padding: '2px 10px', fontSize: '.72rem' }} onClick={() => deleteDuplicate(p.id)}>Remove</button>
+                        }
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <table className="tbl">

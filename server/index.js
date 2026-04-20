@@ -47,15 +47,27 @@ app.post('/api/auth/sso', (req, res) => {
       user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
     }
 
-    // Link SSO user to player record by username if player role
+    // Link SSO user to player record
     if (!COACH_ROLES.includes(role)) {
-      const player = db.prepare('SELECT * FROM players WHERE username = ?').get(username);
+      const studentId = decoded.studentId ? String(decoded.studentId) : null;
+      const grade     = decoded.grade     ? Number(decoded.grade)     : null;
+      // 1. Already linked by username
+      let player = db.prepare('SELECT * FROM players WHERE username = ?').get(username);
+      if (!player && studentId) {
+        // 2. Match spreadsheet-imported player by student ID
+        player = db.prepare('SELECT * FROM players WHERE student_id = ?').get(studentId);
+        if (player) {
+          db.prepare('UPDATE players SET username = ?, grade = COALESCE(?, grade) WHERE id = ?')
+            .run(username, grade, player.id);
+        }
+      }
       if (!player) {
-        // Auto-create player record — coach can assign to pod later
+        // 3. New player — create record, coach assigns to pod later
         const parts = fullName.trim().split(' ');
         const firstName = parts[0] || username;
-        const lastName = parts.slice(1).join(' ') || '';
-        db.prepare('INSERT OR IGNORE INTO players (last_name, first_name, username) VALUES (?,?,?)').run(lastName, firstName, username);
+        const lastName  = parts.slice(1).join(' ') || '';
+        db.prepare('INSERT OR IGNORE INTO players (last_name, first_name, grade, student_id, username) VALUES (?,?,?,?,?)')
+          .run(lastName, firstName, grade, studentId, username);
       }
     }
 
@@ -103,6 +115,28 @@ app.delete('/api/pods/:id', authMiddleware, requireCoach, (req, res) => {
 });
 
 // ── Players ───────────────────────────────────────────────────────────────────
+
+app.get('/api/players/duplicates', authMiddleware, requireCoach, (req, res) => {
+  const db = getDb();
+  const groups = db.prepare(`
+    SELECT LOWER(last_name) as ln, LOWER(first_name) as fn, COUNT(*) as cnt
+    FROM players WHERE is_active = 1
+    GROUP BY LOWER(last_name), LOWER(first_name)
+    HAVING cnt > 1
+  `).all();
+  const result = [];
+  for (const g of groups) {
+    const rows = db.prepare(`
+      SELECT p.*, pod.name as pod_name,
+        (SELECT COUNT(*) FROM lift_entries WHERE player_id = p.id) as lift_count
+      FROM players p LEFT JOIN pods pod ON p.pod_id = pod.id
+      WHERE LOWER(p.last_name) = ? AND LOWER(p.first_name) = ? AND p.is_active = 1
+      ORDER BY lift_count DESC, p.username DESC
+    `).all(g.ln, g.fn);
+    result.push(rows);
+  }
+  res.json(result);
+});
 
 app.get('/api/players', authMiddleware, (req, res) => {
   const db = getDb();

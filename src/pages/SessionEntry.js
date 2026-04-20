@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useAuth, isCoach } from '../App';
 import { api } from '../api';
 
-const LIFTS = ['squat', 'bench', 'deadlift', 'power_clean', 'military_press', 'high_pull'];
+const LIFTS = ['bench', 'squat', 'power_clean', 'deadlift', 'military_press', 'high_pull'];
 const LIFT_LABELS = { squat: 'Squat', bench: 'Bench', deadlift: 'Deadlift', power_clean: 'Power Clean', military_press: 'Mil. Press', high_pull: 'High Pull' };
 
 function calc1RM(weight, reps) {
