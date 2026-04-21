@@ -1,0 +1,9 @@
+node_modules/
+build/
+data/
+.env
+import-output.sql
+import-direct.js
+import-spreadsheet.js
+find-dups.js
+*.log
