@@ -31,6 +31,9 @@ function NavBar({ user, onLogout }) {
 
   return (
     <nav className="navbar">
+      <button className="nav-hamburger" onClick={() => setMenuOpen(o => !o)} aria-label="Menu">
+        {menuOpen ? '✕' : '☰'}
+      </button>
       <div className="nav-brand">
         <span className="nav-logo">💪</span>
         <div>
@@ -51,9 +54,6 @@ function NavBar({ user, onLogout }) {
         <span className="nav-user">{user?.fullName || user?.username}</span>
         <button className="nav-logout" onClick={onLogout}>Sign Out</button>
       </div>
-      <button className="nav-hamburger" onClick={() => setMenuOpen(o => !o)} aria-label="Menu">
-        {menuOpen ? '✕' : '☰'}
-      </button>
       {menuOpen && (
         <div className="mobile-menu" onClick={() => setMenuOpen(false)}>
           <button className="mobile-menu-item" onClick={() => navTo('/dashboard')}>Dashboard</button>
