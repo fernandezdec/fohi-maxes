@@ -23,7 +23,12 @@ function parseJwt(token) {
 
 function NavBar({ user, onLogout }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
   const isActive = (path) => location.pathname.startsWith(path) ? 'active' : '';
+
+  function navTo(path) { setMenuOpen(false); navigate(path); }
+
   return (
     <nav className="navbar">
       <div className="nav-brand">
@@ -46,6 +51,22 @@ function NavBar({ user, onLogout }) {
         <span className="nav-user">{user?.fullName || user?.username}</span>
         <button className="nav-logout" onClick={onLogout}>Sign Out</button>
       </div>
+      <button className="nav-hamburger" onClick={() => setMenuOpen(o => !o)} aria-label="Menu">
+        {menuOpen ? '✕' : '☰'}
+      </button>
+      {menuOpen && (
+        <div className="mobile-menu" onClick={() => setMenuOpen(false)}>
+          <button className="mobile-menu-item" onClick={() => navTo('/dashboard')}>Dashboard</button>
+          <button className="mobile-menu-item" onClick={() => navTo('/sessions')}>Sessions</button>
+          <button className="mobile-menu-item" onClick={() => navTo('/leaderboard')}>Leaderboard</button>
+          {isCoach(user?.role) && <>
+            <button className="mobile-menu-item" onClick={() => navTo('/pods')}>Pods</button>
+            <button className="mobile-menu-item" onClick={() => navTo('/roster')}>Roster</button>
+          </>}
+          <div className="mobile-menu-divider" />
+          <button className="mobile-menu-item mobile-menu-signout" onClick={() => { setMenuOpen(false); onLogout(); }}>Sign Out</button>
+        </div>
+      )}
     </nav>
   );
 }
