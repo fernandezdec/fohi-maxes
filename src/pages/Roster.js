@@ -9,7 +9,7 @@ export default function Roster() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editPlayer, setEditPlayer] = useState(null);
-  const [form, setForm] = useState({ last_name: '', first_name: '', grade: '', student_id: '', pod_id: '', username: '' });
+  const [form, setForm] = useState({ last_name: '', first_name: '', grade: '', student_id: '', pod_id: '', username: '', level: '', position_group: '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -29,13 +29,13 @@ export default function Roster() {
 
   function openNew() {
     setEditPlayer(null);
-    setForm({ last_name: '', first_name: '', grade: '', student_id: '', pod_id: '', username: '' });
+    setForm({ last_name: '', first_name: '', grade: '', student_id: '', pod_id: '', username: '', level: '', position_group: '' });
     setError(''); setShowModal(true);
   }
 
   function openEdit(player) {
     setEditPlayer(player);
-    setForm({ last_name: player.last_name, first_name: player.first_name, grade: player.grade || '', student_id: player.student_id || '', pod_id: player.pod_id || '', username: player.username || '' });
+    setForm({ last_name: player.last_name, first_name: player.first_name, grade: player.grade || '', student_id: player.student_id || '', pod_id: player.pod_id || '', username: player.username || '', level: player.level || '', position_group: player.position_group || '' });
     setError(''); setShowModal(true);
   }
 
@@ -114,8 +114,9 @@ export default function Roster() {
           <thead>
             <tr>
               <th>Name</th>
+              <th>Level</th>
+              <th>Pos</th>
               <th>Grade</th>
-              <th>Student ID</th>
               <th>Pod</th>
               <th>Username</th>
               <th></th>
@@ -123,7 +124,7 @@ export default function Roster() {
           </thead>
           <tbody>
             {players.length === 0 ? (
-              <tr><td colSpan={6} className="loading-cell">No players yet</td></tr>
+              <tr><td colSpan={7} className="loading-cell">No players yet</td></tr>
             ) : players.map(player => (
               <tr key={player.id}>
                 <td>
@@ -131,8 +132,9 @@ export default function Roster() {
                     {player.last_name}, {player.first_name}
                   </Link>
                 </td>
+                <td>{player.level ? <span className="badge" style={{ background: player.level === 'varsity' ? '#1a3a6b' : '#5a5a8a', color: '#fff', fontSize: '.7rem' }}>{player.level === 'varsity' ? 'Varsity' : 'Fr/So'}</span> : '—'}</td>
+                <td>{player.position_group ? <span className="badge badge-gray" style={{ fontSize: '.7rem' }}>{player.position_group}</span> : '—'}</td>
                 <td>{player.grade ? <span className="badge badge-gray">Gr. {player.grade}</span> : '—'}</td>
-                <td style={{ color: 'var(--mu)', fontSize: '.85rem' }}>{player.student_id || '—'}</td>
                 <td>{player.pod_name ? <span className="badge badge-red">Pod {player.pod_name}</span> : <span style={{ color: 'var(--mu)', fontSize: '.82rem' }}>Unassigned</span>}</td>
                 <td style={{ color: 'var(--mu)', fontSize: '.82rem' }}>{player.username || '—'}</td>
                 <td style={{ display: 'flex', gap: 6 }}>
@@ -169,6 +171,23 @@ export default function Roster() {
                 <div className="form-group">
                   <label className="form-label">Student ID</label>
                   <input className="form-input" value={form.student_id} onChange={e => setForm({ ...form, student_id: e.target.value })} placeholder="e.g. 123456" />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Level</label>
+                  <select className="form-select" value={form.level} onChange={e => setForm({ ...form, level: e.target.value })}>
+                    <option value="">— Select —</option>
+                    <option value="varsity">Varsity</option>
+                    <option value="frosh_soph">Frosh/Soph</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Position Group</label>
+                  <select className="form-select" value={form.position_group} onChange={e => setForm({ ...form, position_group: e.target.value })}>
+                    <option value="">— Select —</option>
+                    {['QB','RB','WR','TE','OL','DL','LB','DB','K/P','ATH'].map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
                 </div>
               </div>
               <div className="form-row">

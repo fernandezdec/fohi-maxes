@@ -140,33 +140,35 @@ app.get('/api/players/duplicates', authMiddleware, requireCoach, (req, res) => {
 
 app.get('/api/players', authMiddleware, (req, res) => {
   const db = getDb();
-  const { pod_id, unassigned } = req.query;
+  const { pod_id, unassigned, level, position_group } = req.query;
   let sql = `SELECT p.*, pod.name as pod_name FROM players p LEFT JOIN pods pod ON p.pod_id = pod.id WHERE p.is_active = 1`;
   const params = [];
   if (pod_id) { sql += ' AND p.pod_id = ?'; params.push(pod_id); }
   if (unassigned === 'true') { sql += ' AND p.pod_id IS NULL'; }
+  if (level) { sql += ' AND p.level = ?'; params.push(level); }
+  if (position_group) { sql += ' AND p.position_group = ?'; params.push(position_group); }
   sql += ' ORDER BY p.last_name, p.first_name';
   res.json(db.prepare(sql).all(...params));
 });
 
 app.post('/api/players', authMiddleware, requireCoach, (req, res) => {
-  const { last_name, first_name, grade, student_id, pod_id, username } = req.body;
+  const { last_name, first_name, grade, student_id, pod_id, username, level, position_group } = req.body;
   if (!last_name || !first_name) return res.status(400).json({ error: 'First and last name required' });
   const db = getDb();
   try {
     const result = db.prepare(
-      'INSERT INTO players (last_name, first_name, grade, student_id, pod_id, username) VALUES (?,?,?,?,?,?)'
-    ).run(last_name.trim(), first_name.trim(), grade || null, student_id || null, pod_id || null, username?.toLowerCase() || null);
+      'INSERT INTO players (last_name, first_name, grade, student_id, pod_id, username, level, position_group) VALUES (?,?,?,?,?,?,?,?)'
+    ).run(last_name.trim(), first_name.trim(), grade || null, student_id || null, pod_id || null, username?.toLowerCase() || null, level || null, position_group || null);
     res.json(db.prepare('SELECT * FROM players WHERE id = ?').get(result.lastInsertRowid));
   } catch { res.status(409).json({ error: 'Username already exists' }); }
 });
 
 app.put('/api/players/:id', authMiddleware, requireCoach, (req, res) => {
-  const { last_name, first_name, grade, student_id, pod_id, username, is_active } = req.body;
+  const { last_name, first_name, grade, student_id, pod_id, username, is_active, level, position_group } = req.body;
   const db = getDb();
   db.prepare(
-    'UPDATE players SET last_name=?, first_name=?, grade=?, student_id=?, pod_id=?, username=?, is_active=? WHERE id=?'
-  ).run(last_name, first_name, grade || null, student_id || null, pod_id || null, username?.toLowerCase() || null, is_active ?? 1, req.params.id);
+    'UPDATE players SET last_name=?, first_name=?, grade=?, student_id=?, pod_id=?, username=?, is_active=?, level=?, position_group=? WHERE id=?'
+  ).run(last_name, first_name, grade || null, student_id || null, pod_id || null, username?.toLowerCase() || null, is_active ?? 1, level || null, position_group || null, req.params.id);
   res.json({ success: true });
 });
 
@@ -308,40 +310,34 @@ app.post('/api/entries/speed', authMiddleware, requireCoach, (req, res) => {
 // ── Leaderboard ───────────────────────────────────────────────────────────────
 
 app.get('/api/leaderboard', authMiddleware, (req, res) => {
-  const { lift, session_id } = req.query;
+  const { lift, session_id, level, position_group } = req.query;
   const db = getDb();
 
+  const playerFilter = [];
+  const playerParams = [];
+  if (level) { playerFilter.push('p.level = ?'); playerParams.push(level); }
+  if (position_group) { playerFilter.push('p.position_group = ?'); playerParams.push(position_group); }
+  const playerWhere = playerFilter.length ? ' AND ' + playerFilter.join(' AND ') : '';
+
   if (lift && lift !== 'total') {
-    // Best 1RM for a specific lift, across all sessions or one session
     let sql = `
       SELECT p.id, p.last_name, p.first_name, p.grade, pod.name as pod_name,
+             p.level, p.position_group,
              MAX(le.one_rm) as best_1rm, le.weight, le.reps
       FROM lift_entries le
       JOIN players p ON le.player_id = p.id
       LEFT JOIN pods pod ON p.pod_id = pod.id
-      WHERE le.lift = ? AND le.one_rm IS NOT NULL
+      WHERE le.lift = ? AND le.one_rm IS NOT NULL${playerWhere}
     `;
-    const params = [lift];
+    const params = [lift, ...playerParams];
     if (session_id) { sql += ' AND le.session_id = ?'; params.push(session_id); }
     sql += ' GROUP BY p.id ORDER BY best_1rm DESC';
     return res.json(db.prepare(sql).all(...params));
   }
 
-  // Total: sum of best 1RM for each lift
-  const lifts = ['squat', 'bench', 'deadlift', 'power_clean', 'military_press', 'high_pull'];
-  let sessionFilter = session_id ? 'AND le.session_id = ?' : '';
-  const params = [];
-  if (session_id) params.push(...Array(6).fill(session_id));
-
-  const subqueries = lifts.map((l, i) => `
-    SELECT player_id, MAX(one_rm) as best_${l}
-    FROM lift_entries WHERE lift = '${l}' ${session_id ? 'AND session_id = ?' : ''}
-    GROUP BY player_id
-  `);
-
-  // Simpler approach: get all best 1RMs per player per lift
   const sql = `
     SELECT p.id, p.last_name, p.first_name, p.grade, pod.name as pod_name,
+           p.level, p.position_group,
            SUM(max_1rm) as total, AVG(max_1rm) as avg_1rm
     FROM (
       SELECT player_id, MAX(one_rm) as max_1rm
@@ -351,10 +347,11 @@ app.get('/api/leaderboard', authMiddleware, (req, res) => {
     ) sub
     JOIN players p ON sub.player_id = p.id
     LEFT JOIN pods pod ON p.pod_id = pod.id
+    WHERE 1=1${playerWhere}
     GROUP BY p.id
     ORDER BY total DESC
   `;
-  const qParams = session_id ? [session_id] : [];
+  const qParams = [...(session_id ? [session_id] : []), ...playerParams];
   res.json(db.prepare(sql).all(...qParams));
 });
 

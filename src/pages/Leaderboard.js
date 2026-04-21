@@ -12,10 +12,14 @@ function RankIcon({ rank }) {
   return <span style={{ fontFamily: 'Barlow Condensed', fontWeight: 700, color: 'var(--mu)' }}>{rank}</span>;
 }
 
+const POSITIONS = ['QB','RB','WR','TE','OL','DL','LB','DB','K/P','ATH'];
+
 export default function Leaderboard() {
   const [lift, setLift] = useState('total');
   const [sessions, setSessions] = useState([]);
   const [sessionFilter, setSessionFilter] = useState('');
+  const [levelFilter, setLevelFilter] = useState('');
+  const [posFilter, setPosFilter] = useState('');
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,8 +29,10 @@ export default function Leaderboard() {
     setLoading(true);
     const params = { lift };
     if (sessionFilter) params.session_id = sessionFilter;
+    if (levelFilter) params.level = levelFilter;
+    if (posFilter) params.position_group = posFilter;
     api.getLeaderboard(params).then(setData).finally(() => setLoading(false));
-  }, [lift, sessionFilter]);
+  }, [lift, sessionFilter, levelFilter, posFilter]);
 
   return (
     <div>
@@ -43,6 +49,15 @@ export default function Leaderboard() {
             </button>
           ))}
         </div>
+        <select className="form-select" style={{ width: 'auto', padding: '5px 10px', fontSize: '.82rem' }} value={levelFilter} onChange={e => setLevelFilter(e.target.value)}>
+          <option value="">All Levels</option>
+          <option value="varsity">Varsity</option>
+          <option value="frosh_soph">Frosh/Soph</option>
+        </select>
+        <select className="form-select" style={{ width: 'auto', padding: '5px 10px', fontSize: '.82rem' }} value={posFilter} onChange={e => setPosFilter(e.target.value)}>
+          <option value="">All Positions</option>
+          {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
         <select className="form-select" style={{ width: 'auto', padding: '5px 10px', fontSize: '.82rem' }} value={sessionFilter} onChange={e => setSessionFilter(e.target.value)}>
           <option value="">All Sessions (Best Ever)</option>
           {sessions.map(s => <option key={s.id} value={s.id}>{s.name} — {s.session_date}</option>)}
@@ -60,7 +75,8 @@ export default function Leaderboard() {
               <tr>
                 <th style={{ width: 50 }}>Rank</th>
                 <th>Player</th>
-                <th>Grade</th>
+                <th>Level</th>
+                <th>Pos</th>
                 <th>Pod</th>
                 <th>{lift === 'total' ? 'Total 1RM' : `Best ${LIFT_LABELS[lift]} 1RM`}</th>
                 {lift === 'total' && <th>Avg</th>}
@@ -75,7 +91,8 @@ export default function Leaderboard() {
                       {row.last_name}, {row.first_name}
                     </Link>
                   </td>
-                  <td>{row.grade ? <span className="badge badge-gray">Gr. {row.grade}</span> : '—'}</td>
+                  <td>{row.level ? <span className="badge" style={{ background: row.level === 'varsity' ? '#1a3a6b' : '#5a5a8a', color: '#fff', fontSize: '.7rem' }}>{row.level === 'varsity' ? 'Varsity' : 'Fr/So'}</span> : '—'}</td>
+                  <td>{row.position_group ? <span className="badge badge-gray" style={{ fontSize: '.7rem' }}>{row.position_group}</span> : '—'}</td>
                   <td>{row.pod_name ? <span className="badge badge-red">Pod {row.pod_name}</span> : '—'}</td>
                   <td>
                     <span style={{ fontFamily: 'Barlow Condensed', fontWeight: 900, fontSize: '1.15rem', color: 'var(--m)' }}>

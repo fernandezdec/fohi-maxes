@@ -75,6 +75,8 @@ function initSchema() {
       created_at TEXT DEFAULT (datetime('now'))
     );
   `);
+  try { db.exec('ALTER TABLE players ADD COLUMN level TEXT'); } catch {}
+  try { db.exec('ALTER TABLE players ADD COLUMN position_group TEXT'); } catch {}
   seedPods();
 }
 
