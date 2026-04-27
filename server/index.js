@@ -140,8 +140,9 @@ app.get('/api/players/duplicates', authMiddleware, requireCoach, (req, res) => {
 
 app.get('/api/players', authMiddleware, (req, res) => {
   const db = getDb();
-  const { pod_id, unassigned, level, position_group } = req.query;
-  let sql = `SELECT p.*, pod.name as pod_name FROM players p LEFT JOIN pods pod ON p.pod_id = pod.id WHERE p.is_active = 1`;
+  const { pod_id, unassigned, level, position_group, inactive } = req.query;
+  const activeFilter = inactive === 'true' ? 'p.is_active = 0' : 'p.is_active = 1';
+  let sql = `SELECT p.*, pod.name as pod_name FROM players p LEFT JOIN pods pod ON p.pod_id = pod.id WHERE ${activeFilter}`;
   const params = [];
   if (pod_id) { sql += ' AND p.pod_id = ?'; params.push(pod_id); }
   if (unassigned === 'true') { sql += ' AND p.pod_id IS NULL'; }
@@ -169,6 +170,14 @@ app.put('/api/players/:id', authMiddleware, requireCoach, (req, res) => {
   db.prepare(
     'UPDATE players SET last_name=?, first_name=?, grade=?, student_id=?, pod_id=?, username=?, is_active=?, level=?, position_group=? WHERE id=?'
   ).run(last_name, first_name, grade || null, student_id || null, pod_id || null, username?.toLowerCase() || null, is_active ?? 1, level || null, position_group || null, req.params.id);
+  res.json({ success: true });
+});
+
+app.delete('/api/players/:id', authMiddleware, requireCoach, (req, res) => {
+  const db = getDb();
+  const player = db.prepare('SELECT id FROM players WHERE id = ?').get(req.params.id);
+  if (!player) return res.status(404).json({ error: 'Not found' });
+  db.prepare('DELETE FROM players WHERE id = ?').run(req.params.id);
   res.json({ success: true });
 });
 

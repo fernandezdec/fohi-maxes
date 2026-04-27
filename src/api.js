@@ -34,6 +34,7 @@ export const api = {
   },
   createPlayer: (data) => req('POST', '/players', data),
   updatePlayer: (id, data) => req('PUT', `/players/${id}`, data),
+  deletePlayer: (id) => req('DELETE', `/players/${id}`),
   assignPod: (id, pod_id) => req('PATCH', `/players/${id}/pod`, { pod_id }),
   getPlayerStats: (id) => req('GET', `/players/${id}/stats`),
   getMyPlayer: () => req('GET', '/players/me'),

@@ -4,8 +4,10 @@ import { api } from '../api';
 
 export default function Roster() {
   const [players, setPlayers] = useState([]);
+  const [inactive, setInactive] = useState([]);
   const [pods, setPods] = useState([]);
   const [duplicates, setDuplicates] = useState([]);
+  const [showInactive, setShowInactive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editPlayer, setEditPlayer] = useState(null);
@@ -16,14 +18,31 @@ export default function Roster() {
   useEffect(() => { load(); }, []);
 
   async function load() {
-    const [pl, po, dups] = await Promise.all([api.getPlayers(), api.getPods(), api.getDuplicates()]);
-    setPlayers(pl || []); setPods(po || []); setDuplicates(dups || []);
+    const [pl, po, dups, inact] = await Promise.all([api.getPlayers(), api.getPods(), api.getDuplicates(), api.getPlayers({ inactive: 'true' })]);
+    setPlayers(pl || []); setPods(po || []); setDuplicates(dups || []); setInactive(inact || []);
     setLoading(false);
   }
 
   async function deleteDuplicate(id) {
     if (!window.confirm('Delete this duplicate player record? Lift history for this record will also be deleted.')) return;
     await api.updatePlayer(id, { is_active: 0 });
+    load();
+  }
+
+  async function disablePlayer(player) {
+    if (!window.confirm(`Disable ${player.first_name} ${player.last_name}? They will be moved to the inactive list.`)) return;
+    await api.updatePlayer(player.id, { ...player, is_active: 0 });
+    load();
+  }
+
+  async function reactivatePlayer(player) {
+    await api.updatePlayer(player.id, { ...player, is_active: 1 });
+    load();
+  }
+
+  async function permanentlyDelete(player) {
+    if (!window.confirm(`PERMANENTLY DELETE ${player.first_name} ${player.last_name}?\n\nThis will erase all lift history for this player and cannot be undone.`)) return;
+    await api.deletePlayer(player.id);
     load();
   }
 
@@ -49,11 +68,6 @@ export default function Roster() {
       setShowModal(false); load();
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
-  }
-
-  async function toggleActive(player) {
-    await api.updatePlayer(player.id, { ...player, is_active: player.is_active ? 0 : 1 });
-    load();
   }
 
   if (loading) return <div className="loading-screen"><div className="spinner" /></div>;
@@ -140,12 +154,50 @@ export default function Roster() {
                 <td style={{ display: 'flex', gap: 6 }}>
                   <button className="btn btn-sm btn-secondary" onClick={() => openEdit(player)}>Edit</button>
                   <Link to={`/players/${player.id}`} className="btn btn-sm btn-ghost">Stats</Link>
+                  <button className="btn btn-sm" style={{ background: '#e67e22', color: '#fff' }} onClick={() => disablePlayer(player)}>Disable</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {inactive.length > 0 && (
+        <div style={{ marginTop: 24 }}>
+          <button className="btn btn-ghost btn-sm" style={{ marginBottom: 10, fontSize: '.82rem' }} onClick={() => setShowInactive(v => !v)}>
+            {showInactive ? '▾' : '▸'} Inactive Players ({inactive.length})
+          </button>
+          {showInactive && (
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Level</th>
+                    <th>Pos</th>
+                    <th>Pod</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inactive.map(player => (
+                    <tr key={player.id} style={{ opacity: 0.65 }}>
+                      <td style={{ fontWeight: 600 }}>{player.last_name}, {player.first_name}</td>
+                      <td>{player.level ? <span className="badge" style={{ background: player.level === 'varsity' ? '#1a3a6b' : '#5a5a8a', color: '#fff', fontSize: '.7rem' }}>{player.level === 'varsity' ? 'Varsity' : 'Fr/So'}</span> : '—'}</td>
+                      <td>{player.position_group ? <span className="badge badge-gray" style={{ fontSize: '.7rem' }}>{player.position_group}</span> : '—'}</td>
+                      <td>{player.pod_name ? <span className="badge badge-red">Pod {player.pod_name}</span> : '—'}</td>
+                      <td style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn btn-sm btn-secondary" onClick={() => reactivatePlayer(player)}>Re-activate</button>
+                        <button className="btn btn-sm" style={{ background: '#dc3545', color: '#fff' }} onClick={() => permanentlyDelete(player)}>Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {showModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
